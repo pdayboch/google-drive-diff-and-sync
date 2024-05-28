@@ -8,14 +8,31 @@ class DriveApi
   TOKEN_PATH = 'token.yaml'
   FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
-  def initialize(creds_path)
-    @drive_service = get_drive_service(creds_path)
+  def initialize(creds_path, update_drive=false)
+    @update_drive = update_drive
+    @drive_service = get_drive_service(creds_path) if update_drive
   end
 
-  def list_drive_files_recursive(
+  def get_all_folders_and_files(root_folder_name)
+    if @update_drive
+      folder_id = get_root_folder_id(root_folder_name)
+      objects = fetch_objects_recursive(folder_id)
+      File.write('./drive_folder_list.csv', "#{objects[:folders].join("\n")}\n")
+      File.write('./drive_file_list.csv', "#{objects[:files].join("\n")}\n")
+      objects
+    else
+      {
+        files: File.read('./drive_file_list.csv').split("\n"),
+        folders: File.read('./drive_folder_list.csv').split("\n")
+      }
+    end
+  end
+
+  def fetch_objects_recursive(
     folder_id,
     path = '',
     files = [],
+    folders = [],
     page_token = nil
   )
     query = "'#{folder_id}' in parents and trashed = false"
@@ -30,12 +47,15 @@ class DriveApi
 
     response.files.each do |file|
       full_path = path + file.name
+
       if file.mime_type == FOLDER_MIME_TYPE
-        puts("diving into #{full_path}")
-        list_drive_files_recursive(
+        folders << full_path + '/'
+
+        fetch_objects_recursive(
           file.id,
           full_path + '/',
-          files
+          files,
+          folders,
         )
       else
         files << full_path
@@ -44,15 +64,20 @@ class DriveApi
 
     # Recursive call to continue listing if there's another page of results
     if response.next_page_token
-      list_drive_files_recursive(
+      puts("there is a next page")
+      fetch_objects_recursive(
         folder_id,
         path,
         files,
+        folders,
         response.next_page_token
       )
     end
 
-    files
+    {
+      files: files,
+      folders: folders
+    }
   end
 
   def get_root_folder_id(root_folder_name)
