@@ -33,9 +33,13 @@ class DriveApi
     path = '',
     files = [],
     folders = [],
-    page_token = nil
+    page_token = nil,
+    count_fetches = { count: 0 }
   )
     query = "'#{folder_id}' in parents and trashed = false"
+
+    count_fetches[:count] += 1
+    print('.') if count_fetches[:count] % 15 == 0
 
     response = @drive_service.list_files(
       q: query,
@@ -56,6 +60,8 @@ class DriveApi
           full_path + '/',
           files,
           folders,
+          nil,
+          count_fetches
         )
       else
         files << full_path
@@ -70,7 +76,8 @@ class DriveApi
         path,
         files,
         folders,
-        response.next_page_token
+        response.next_page_token,
+        count_fetches
       )
     end
 
