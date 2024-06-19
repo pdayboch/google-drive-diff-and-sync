@@ -389,4 +389,30 @@ RSpec.describe FileTreeDiffer do
       end
     end
   end
+
+  describe ".print_diff_object" do
+    context "with diffs" do
+      it "prints correct diffs" do
+        diffs = { missing_local: ["something"], missing_drive: ["something2"] }
+        expect { described_class.print_diff_object(diffs) }
+          .to output(/These are missing from local harddrive:/).to_stdout
+        expect { described_class.print_diff_object(diffs) }
+          .to output(/something/).to_stdout
+        expect { described_class.print_diff_object(diffs) }
+          .to output(/#{"-" * 70 + "\n\n\n"}/).to_stdout
+        expect { described_class.print_diff_object(diffs) }
+          .to output(/These are missing from Google Drive:/).to_stdout
+        expect { described_class.print_diff_object(diffs) }
+          .to output(/something2/).to_stdout
+      end
+    end
+
+    context "without empty diffs" do
+      it "prints synced" do
+        diffs = { missing_local: [], missing_drive: [] }
+        expect { described_class.print_diff_object(diffs) }
+          .to output(/Synced!/).to_stdout
+      end
+    end
+  end
 end

@@ -106,7 +106,13 @@ class FileTreeDiffer
     @unsynced_objects.any?{ |uo| Regexp.new("^#{uo}").match(object) }
   end
 
+  def self.empty_diffs?(diffs)
+    diffs.all? { |_,v| v.empty? }
+  end
+
   def self.print_diff_object(diff_object)
+    puts("Synced!") if empty_diffs?(diff_object)
+
     if diff_object[:missing_local].any?
       puts("These are missing from local harddrive:")
       puts diff_object[:missing_local]
@@ -117,6 +123,5 @@ class FileTreeDiffer
       puts("These are missing from Google Drive:")
       puts diff_object[:missing_drive]
     end
-
   end
 end
