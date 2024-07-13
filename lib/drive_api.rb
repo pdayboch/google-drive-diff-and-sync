@@ -1,14 +1,14 @@
-require 'google/apis/drive_v3'
-require 'googleauth'
-require 'googleauth/stores/file_token_store'
+require "google/apis/drive_v3"
+require "googleauth"
+require "googleauth/stores/file_token_store"
 
 class DriveApi
-  OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
-  APPLICATION_NAME = 'Drive API Ruby Compare Directories'
-  TOKEN_PATH = 'token.yaml'
-  FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
+  OOB_URI = "urn:ietf:wg:oauth:2.0:oob"
+  APPLICATION_NAME = "Drive API Ruby Compare Directories"
+  TOKEN_PATH = "token.yaml"
+  FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
 
-  def initialize(creds_path, update_drive=false)
+  def initialize(creds_path, update_drive = false)
     @update_drive = update_drive
     @drive_service = get_drive_service(creds_path) if update_drive
   end
@@ -17,20 +17,21 @@ class DriveApi
     if @update_drive
       folder_id = get_root_folder_id(root_folder_name)
       objects = fetch_objects_recursive(folder_id)
-      File.write('./drive_folder_list.csv', "#{objects[:folders].join("\n")}\n")
-      File.write('./drive_file_list.csv', "#{objects[:files].join("\n")}\n")
+      puts("")
+      File.write("./drive_folder_list.csv", "#{objects[:folders].join("\n")}\n")
+      File.write("./drive_file_list.csv", "#{objects[:files].join("\n")}\n")
       objects
     else
       {
-        files: File.read('./drive_file_list.csv').split("\n"),
-        folders: File.read('./drive_folder_list.csv').split("\n")
+        files: File.read("./drive_file_list.csv").split("\n"),
+        folders: File.read("./drive_folder_list.csv").split("\n"),
       }
     end
   end
 
   def fetch_objects_recursive(
     folder_id,
-    path = '',
+    path = "",
     files = [],
     folders = [],
     page_token = nil,
@@ -39,25 +40,25 @@ class DriveApi
     query = "'#{folder_id}' in parents and trashed = false"
 
     count_fetches[:count] += 1
-    print('.') if count_fetches[:count] % 15 == 0
+    print(".") if count_fetches[:count] % 15 == 0
 
     response = @drive_service.list_files(
       q: query,
-      spaces: 'drive',
-      fields: 'nextPageToken, files(id, name, mime_type)',
+      spaces: "drive",
+      fields: "nextPageToken, files(id, name, mime_type)",
       page_size: 1000,
-      page_token: page_token
+      page_token: page_token,
     )
 
     response.files.each do |file|
       full_path = path + file.name
 
       if file.mime_type == FOLDER_MIME_TYPE
-        folders << full_path + '/'
+        folders << full_path + "/"
 
         fetch_objects_recursive(
           file.id,
-          full_path + '/',
+          full_path + "/",
           files,
           folders,
           nil,
@@ -83,7 +84,7 @@ class DriveApi
 
     {
       files: files,
-      folders: folders
+      folders: folders,
     }
   end
 
@@ -93,13 +94,14 @@ class DriveApi
     response = @drive_service
       .list_files(
         q: query,
-        spaces: 'drive',
-        fields: 'files(id, name)'
-    )
+        spaces: "drive",
+        fields: "files(id, name)",
+      )
     response.files.first.id
   end
 
   private
+
   def get_drive_service(creds_path)
     drive_service = Google::Apis::DriveV3::DriveService.new
     drive_service.client_options.application_name = APPLICATION_NAME
@@ -115,7 +117,7 @@ class DriveApi
       Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY,
       token_store
     )
-    user_id = 'default'
+    user_id = "default"
     credentials = authorizer.get_credentials(user_id)
     if credentials.nil? || credentials.needs_access_token?
       url = authorizer.get_authorization_url(base_url: OOB_URI)
@@ -124,6 +126,7 @@ class DriveApi
       code = gets
       credentials = authorizer.get_and_store_credentials_from_code(user_id: user_id, code: code, base_url: OOB_URI)
     end
+
     credentials
   end
 end

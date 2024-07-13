@@ -114,14 +114,16 @@ class FileTreeDiffer
     puts("Synced!") if empty_diffs?(diff_object)
 
     if diff_object[:missing_local].any?
-      puts("These are missing from local harddrive:")
-      puts diff_object[:missing_local]
-      puts("-" * 70 + "\n\n\n" )
+      puts("-" * 70)
+      puts("\nThese are missing from local harddrive:")
+      diff_object[:missing_local].each{ |o| puts("- #{o}") }
+      puts("\n" + "-" * 70 + "\n" )
     end
 
     if diff_object[:missing_drive].any?
-      puts("These are missing from Google Drive:")
-      puts diff_object[:missing_drive]
+      puts("\nThese are missing from Google Drive:")
+      diff_object[:missing_drive].each{ |o| puts("- #{o}") }
+      puts("-" * 70)
     end
   end
 end
