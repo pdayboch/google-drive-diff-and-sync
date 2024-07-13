@@ -119,12 +119,14 @@ class DriveApi
     )
     user_id = "default"
     credentials = authorizer.get_credentials(user_id)
-    if credentials.nil? || credentials.needs_access_token?
+    if credentials.nil?
       url = authorizer.get_authorization_url(base_url: OOB_URI)
-      puts "TOKEN REFRESH NEEDED.\n"
       puts "Open the following URL in the browser and enter the resulting code after authorization:\n\n" + url
       code = gets
       credentials = authorizer.get_and_store_credentials_from_code(user_id: user_id, code: code, base_url: OOB_URI)
+    elsif credentials.expired?
+      puts("refreshing token...")
+      credentials.refresh!
     end
 
     credentials
