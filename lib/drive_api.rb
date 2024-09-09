@@ -15,8 +15,8 @@ class DriveApi
 
   def get_all_folders_and_files(root_folder_name)
     if @update_drive
-      folder_id = get_root_folder_id(root_folder_name)
-      objects = fetch_objects_recursive(folder_id)
+      folder_metadata = get_root_folder_metadata(root_folder_name)
+      objects = fetch_objects_recursive(folder_metadata: folder_metadata)
       puts("")
       File.write("./drive_folder_list.csv", "#{objects[:folders].join("\n")}\n")
       File.write("./drive_file_list.csv", "#{objects[:files].join("\n")}\n")
@@ -30,14 +30,14 @@ class DriveApi
   end
 
   def fetch_objects_recursive(
-    folder_id,
-    path = "",
-    files = [],
-    folders = [],
-    page_token = nil,
-    count_fetches = { count: 0 }
+    folder_metadata:,
+    path: "",
+    files: [],
+    folders: [],
+    page_token: nil,
+    count_fetches: { count: 0 }
   )
-    query = "'#{folder_id}' in parents and trashed = false"
+    query = "'#{folder_metadata.id}' in parents and trashed = false"
 
     count_fetches[:count] += 1
     print(".") if count_fetches[:count] % 15 == 0
@@ -57,12 +57,12 @@ class DriveApi
         folders << full_path + "/"
 
         fetch_objects_recursive(
-          file.id,
-          full_path + "/",
-          files,
-          folders,
-          nil,
-          count_fetches
+          folder_metadata: file,
+          path: full_path + "/",
+          files: files,
+          folders: folders,
+          page_token: nil,
+          count_fetches: count_fetches
         )
       else
         files << full_path
@@ -73,12 +73,12 @@ class DriveApi
     if response.next_page_token
       puts("there is a next page")
       fetch_objects_recursive(
-        folder_id,
-        path,
-        files,
-        folders,
-        response.next_page_token,
-        count_fetches
+        folder_metadata: folder_metadata,
+        path: path,
+        files: files,
+        folders: folders,
+        page_token: response.next_page_token,
+        count_fetches: count_fetches
       )
     end
 
@@ -88,8 +88,8 @@ class DriveApi
     }
   end
 
-  def get_root_folder_id(root_folder_name)
-    query = "name = '#{root_folder_name}' and mimeType = 'application/vnd.google-apps.folder' and 'root' in parents and trashed = false"
+  def get_root_folder_metadata(root_folder_name)
+    query = "name = '#{root_folder_name}' and mimeType = '#{FOLDER_MIME_TYPE}' and 'root' in parents and trashed = false"
 
     response = @drive_service
       .list_files(
@@ -97,7 +97,7 @@ class DriveApi
         spaces: "drive",
         fields: "files(id, name)",
       )
-    response.files.first.id
+    response.files.first
   end
 
   private
