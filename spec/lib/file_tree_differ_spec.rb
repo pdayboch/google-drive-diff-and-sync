@@ -2,18 +2,18 @@ require 'spec_helper'
 require './lib/file_tree_differ'
 
 RSpec.describe FileTreeDiffer do
-  describe "#get_diffs" do
-    context "without unsynced list" do
-      context "missing only files" do
-        context "missing local only" do
-          it "returns correct diffs" do
+  describe '#get_diffs' do
+    context 'without unsynced list' do
+      context 'missing only files' do
+        context 'missing local only' do
+          it 'returns correct diffs' do
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: []
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
             diffs = FileTreeDiffer.new(
               local_objects,
@@ -22,20 +22,20 @@ RSpec.describe FileTreeDiffer do
             ).get_diffs
 
             expect(diffs[:missing_local])
-              .to include("docs/foo/bar.pdf")
+              .to include('docs/foo/bar.pdf')
             expect(diffs[:missing_drive])
               .to be_empty
           end
         end
 
-        context "missing drive only" do
-          it "returns correct diffs" do
+        context 'missing drive only' do
+          it 'returns correct diffs' do
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: []
             }
 
@@ -48,19 +48,19 @@ RSpec.describe FileTreeDiffer do
             expect(diffs[:missing_local])
               .to be_empty
             expect(diffs[:missing_drive])
-              .to include("docs/foo/bar.pdf")
+              .to include('docs/foo/bar.pdf')
           end
         end
 
-        context "missing drive and local" do
-          it "returns correct diffs" do
+        context 'missing drive and local' do
+          it 'returns correct diffs' do
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/biz.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/biz.pdf']
             }
 
             diffs = FileTreeDiffer.new(
@@ -70,23 +70,23 @@ RSpec.describe FileTreeDiffer do
             ).get_diffs
 
             expect(diffs[:missing_local])
-              .to include("docs/foo/biz.pdf")
+              .to include('docs/foo/biz.pdf')
             expect(diffs[:missing_drive])
-              .to include("docs/foo/bar.pdf")
+              .to include('docs/foo/bar.pdf')
           end
         end
 
-        context "when file is google doc and converted locally" do
-          it "does not return the file as missing" do
-            google_doc_file = "docs/foo/google_doc"
+        context 'when file is google doc and converted locally' do
+          it 'does not return the file as missing' do
+            google_doc_file = 'docs/foo/google_doc'
             local_file = "#{google_doc_file}.docx"
 
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: [local_file]
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: [google_doc_file]
             }
 
@@ -104,16 +104,16 @@ RSpec.describe FileTreeDiffer do
         end
       end
 
-      context "missing folders and files" do
-        context "missing local only" do
-          it "returns the directory only" do
+      context 'missing folders and files' do
+        context 'missing local only' do
+          it 'returns the directory only' do
             local_objects = {
-              folders: ["docs/"],
+              folders: ['docs/'],
               files: []
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
 
             diffs = FileTreeDiffer.new(
@@ -123,22 +123,22 @@ RSpec.describe FileTreeDiffer do
             ).get_diffs
 
             expect(diffs[:missing_local])
-              .to include("docs/foo/")
+              .to include('docs/foo/')
             expect(diffs[:missing_local])
-              .not_to include("docs/foo/bar.pdf")
+              .not_to include('docs/foo/bar.pdf')
             expect(diffs[:missing_drive])
               .to be_empty
           end
         end
 
-        context "missing drive only" do
-          it "returns the directory only" do
+        context 'missing drive only' do
+          it 'returns the directory only' do
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
             drive_objects = {
-              folders: ["docs/"],
+              folders: ['docs/'],
               files: []
             }
 
@@ -151,21 +151,21 @@ RSpec.describe FileTreeDiffer do
             expect(diffs[:missing_local])
               .to be_empty
             expect(diffs[:missing_drive])
-              .to include("docs/foo/")
+              .to include('docs/foo/')
             expect(diffs[:missing_drive])
-              .not_to include("docs/foo/bar.pdf")
+              .not_to include('docs/foo/bar.pdf')
           end
         end
 
-        context "missing drive and local" do
-          it "returns the directory only" do
+        context 'missing drive and local' do
+          it 'returns the directory only' do
             local_objects = {
-              folders: ["docs/", "docs/biz/"],
-              files: ["docs/biz/baz.pdf"]
+              folders: ['docs/', 'docs/biz/'],
+              files: ['docs/biz/baz.pdf']
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
 
             diffs = FileTreeDiffer.new(
@@ -175,31 +175,31 @@ RSpec.describe FileTreeDiffer do
             ).get_diffs
 
             expect(diffs[:missing_local])
-              .to include("docs/foo/")
+              .to include('docs/foo/')
             expect(diffs[:missing_local])
-              .not_to include("docs/foo/bar.pdf")
+              .not_to include('docs/foo/bar.pdf')
             expect(diffs[:missing_drive])
-              .to include("docs/biz/")
+              .to include('docs/biz/')
             expect(diffs[:missing_drive])
-              .not_to include("docs/biz/baz.pdf")
+              .not_to include('docs/biz/baz.pdf')
           end
         end
       end
     end
 
-    context "with unsynced list" do
-      context "missing only files" do
-        context "missing local only" do
-          it "returns correct diffs" do
-            unsynced_file = "docs/foo/dont_sync.jpg"
+    context 'with unsynced list' do
+      context 'missing only files' do
+        context 'missing local only' do
+          it 'returns correct diffs' do
+            unsynced_file = 'docs/foo/dont_sync.jpg'
 
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: []
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf", unsynced_file]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf', unsynced_file]
             }
 
             diffs = FileTreeDiffer.new(
@@ -209,7 +209,7 @@ RSpec.describe FileTreeDiffer do
             ).get_diffs
 
             expect(diffs[:missing_local])
-              .to include("docs/foo/bar.pdf")
+              .to include('docs/foo/bar.pdf')
             expect(diffs[:missing_local])
               .not_to include(unsynced_file)
             expect(diffs[:missing_drive])
@@ -217,16 +217,16 @@ RSpec.describe FileTreeDiffer do
           end
         end
 
-        context "missing drive only" do
-          it "returns correct diffs" do
-            unsynced_file = "docs/foo/dont_sync.jpg"
+        context 'missing drive only' do
+          it 'returns correct diffs' do
+            unsynced_file = 'docs/foo/dont_sync.jpg'
 
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf", unsynced_file]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf', unsynced_file]
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: []
             }
 
@@ -239,24 +239,24 @@ RSpec.describe FileTreeDiffer do
             expect(diffs[:missing_local])
               .to be_empty
             expect(diffs[:missing_drive])
-              .to include("docs/foo/bar.pdf")
+              .to include('docs/foo/bar.pdf')
             expect(diffs[:missing_drive])
               .not_to include(unsynced_file)
           end
         end
 
-        context "missing drive and local" do
-          it "returns correct diffs" do
-            unsynced_local_file = "docs/foo/local_dont_sync.jpg"
-            unsynced_drive_file = "docs/foo/drive_dont_sync.jpg"
+        context 'missing drive and local' do
+          it 'returns correct diffs' do
+            unsynced_local_file = 'docs/foo/local_dont_sync.jpg'
+            unsynced_drive_file = 'docs/foo/drive_dont_sync.jpg'
 
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf", unsynced_local_file]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf', unsynced_local_file]
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/biz.pdf", unsynced_drive_file]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/biz.pdf', unsynced_drive_file]
             }
 
             diffs = FileTreeDiffer.new(
@@ -266,28 +266,28 @@ RSpec.describe FileTreeDiffer do
             ).get_diffs
 
             expect(diffs[:missing_local])
-              .to include("docs/foo/biz.pdf")
+              .to include('docs/foo/biz.pdf')
             expect(diffs[:missing_local])
               .not_to include(unsynced_drive_file)
             expect(diffs[:missing_drive])
-              .to include("docs/foo/bar.pdf")
+              .to include('docs/foo/bar.pdf')
             expect(diffs[:missing_drive])
               .not_to include(unsynced_local_file)
           end
         end
 
-        context "when file is google doc and converted locally" do
-          it "does not return the file as missing" do
-            unsynced_drive_file = "docs/foo/google_doc"
-            google_doc_file = "docs/foo/google_doc"
+        context 'when file is google doc and converted locally' do
+          it 'does not return the file as missing' do
+            unsynced_drive_file = 'docs/foo/google_doc'
+            google_doc_file = 'docs/foo/google_doc'
             local_file = "#{google_doc_file}.docx"
 
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: [local_file]
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
+              folders: ['docs/', 'docs/foo/'],
               files: [google_doc_file]
             }
 
@@ -305,18 +305,18 @@ RSpec.describe FileTreeDiffer do
         end
       end
 
-      context "missing folders and files" do
-        context "missing local only" do
-          it "returns the directory only" do
-            unsynced_folder = "docs/dont_sync/"
-            unsynced_file_in_folder = "docs/dont_sync/file.txt"
+      context 'missing folders and files' do
+        context 'missing local only' do
+          it 'returns the directory only' do
+            unsynced_folder = 'docs/dont_sync/'
+            unsynced_file_in_folder = 'docs/dont_sync/file.txt'
             drive_objects = {
-              folders: ["docs/", "docs/foo/", unsynced_folder],
-              files: ["docs/foo/bar.pdf", unsynced_file_in_folder]
+              folders: ['docs/', 'docs/foo/', unsynced_folder],
+              files: ['docs/foo/bar.pdf', unsynced_file_in_folder]
             }
             local_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
 
             diffs = FileTreeDiffer.new(
@@ -332,17 +332,17 @@ RSpec.describe FileTreeDiffer do
           end
         end
 
-        context "missing drive only" do
-          it "returns the directory only" do
-            unsynced_folder = "docs/dont_sync/"
-            unsynced_file_in_folder = "docs/dont_sync/file.txt"
+        context 'missing drive only' do
+          it 'returns the directory only' do
+            unsynced_folder = 'docs/dont_sync/'
+            unsynced_file_in_folder = 'docs/dont_sync/file.txt'
             drive_objects = {
-              folders: ["docs/", "docs/foo/"],
-              files: ["docs/foo/bar.pdf"]
+              folders: ['docs/', 'docs/foo/'],
+              files: ['docs/foo/bar.pdf']
             }
             local_objects = {
-              folders: ["docs/", "docs/foo/", unsynced_folder],
-              files: ["docs/foo/bar.pdf", unsynced_file_in_folder]
+              folders: ['docs/', 'docs/foo/', unsynced_folder],
+              files: ['docs/foo/bar.pdf', unsynced_file_in_folder]
             }
 
             diffs = FileTreeDiffer.new(
@@ -358,20 +358,20 @@ RSpec.describe FileTreeDiffer do
           end
         end
 
-        context "missing drive and local" do
-          it "returns correct diffs" do
-            unsynced_drive_folder = "docs/dont_sync_drive/"
-            unsynced_drive_file = "docs/dont_sync_drive/drive.txt"
-            unsynced_local_folder = "docs/dont_sync_local/"
-            unsynced_local_file = "docs/dont_sync_local/local.txt"
+        context 'missing drive and local' do
+          it 'returns correct diffs' do
+            unsynced_drive_folder = 'docs/dont_sync_drive/'
+            unsynced_drive_file = 'docs/dont_sync_drive/drive.txt'
+            unsynced_local_folder = 'docs/dont_sync_local/'
+            unsynced_local_file = 'docs/dont_sync_local/local.txt'
 
             local_objects = {
-              folders: ["docs/", "docs/foo/", unsynced_local_folder],
-              files: ["docs/foo/bar.pdf", unsynced_local_file]
+              folders: ['docs/', 'docs/foo/', unsynced_local_folder],
+              files: ['docs/foo/bar.pdf', unsynced_local_file]
             }
             drive_objects = {
-              folders: ["docs/", "docs/foo/", unsynced_drive_folder],
-              files: ["docs/foo/bar.pdf", unsynced_drive_file]
+              folders: ['docs/', 'docs/foo/', unsynced_drive_folder],
+              files: ['docs/foo/bar.pdf', unsynced_drive_file]
             }
 
             diffs = FileTreeDiffer.new(
@@ -390,16 +390,16 @@ RSpec.describe FileTreeDiffer do
     end
   end
 
-  describe ".print_diff_object" do
-    context "with diffs" do
-      it "prints correct diffs" do
-        diffs = { missing_local: ["something"], missing_drive: ["something2"] }
+  describe '.print_diff_object' do
+    context 'with diffs' do
+      it 'prints correct diffs' do
+        diffs = { missing_local: ['something'], missing_drive: ['something2'] }
         expect { described_class.print_diff_object(diffs) }
           .to output(/These are missing from local harddrive:/).to_stdout
         expect { described_class.print_diff_object(diffs) }
           .to output(/something/).to_stdout
         expect { described_class.print_diff_object(diffs) }
-          .to output(/#{"-" * 70 + "\n\n\n"}/).to_stdout
+          .to output(/#{"#{'-' * 70}\n\n"}/).to_stdout
         expect { described_class.print_diff_object(diffs) }
           .to output(/These are missing from Google Drive:/).to_stdout
         expect { described_class.print_diff_object(diffs) }
@@ -407,8 +407,8 @@ RSpec.describe FileTreeDiffer do
       end
     end
 
-    context "without empty diffs" do
-      it "prints synced" do
+    context 'without empty diffs' do
+      it 'prints synced' do
         diffs = { missing_local: [], missing_drive: [] }
         expect { described_class.print_diff_object(diffs) }
           .to output(/Synced!/).to_stdout

@@ -1,5 +1,8 @@
+# frozen_string_literal: true
+
 class FileTreeDiffer
   attr_reader :local_folders, :local_files, :drive_folders, :drive_files, :unsynced_objects
+
   def initialize(local_objects, drive_objects, unsynced_list)
     @local_folders = local_objects[:folders]
     @local_files = local_objects[:files]
@@ -32,10 +35,9 @@ class FileTreeDiffer
     filtered_diffs = []
     missing_local_folders.sort.each do |folder|
       next if unsynced_object?(folder)
+
       # Ignore all diffs under a subfolder that's already missing and logged.
-      if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
-        filtered_diffs << folder
-      end
+      filtered_diffs << folder if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
     end
 
     filtered_diffs
@@ -46,13 +48,12 @@ class FileTreeDiffer
     filtered_diffs = []
     missing_drive_folders.sort.each do |folder|
       next if unsynced_object?(folder)
+
       # Ignore all diffs under a subfolder that's already missing and logged.
       # Ex: logged folder is 'Documents/Financial/Chase/'
       # and new missing folder is 'Documents/Financial/Chase/Statements',
       # we dont want to log the subfolder since the parent is already logged.
-      if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
-        filtered_diffs << folder
-      end
+      filtered_diffs << folder if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
     end
 
     filtered_diffs
@@ -63,9 +64,8 @@ class FileTreeDiffer
     filtered_diffs = []
     missing_local_files.each do |file|
       next if unsynced_object?(file)
-      if missing_local_folders.none? { |logged_folder| file.include?(logged_folder) }
-        filtered_diffs << file
-      end
+
+      filtered_diffs << file if missing_local_folders.none? { |logged_folder| file.include?(logged_folder) }
     end
 
     filtered_diffs
@@ -76,9 +76,8 @@ class FileTreeDiffer
     filtered_diffs = []
     missing_drive_files.each do |file|
       next if unsynced_object?(file)
-      if missing_drive_folders.none? { |logged_folder| file.include?(logged_folder) }
-        filtered_diffs << file
-      end
+
+      filtered_diffs << file if missing_drive_folders.none? { |logged_folder| file.include?(logged_folder) }
     end
 
     filtered_diffs
@@ -103,27 +102,27 @@ class FileTreeDiffer
   end
 
   def unsynced_object?(object)
-    @unsynced_objects.any?{ |uo| Regexp.new("^#{uo}").match(object) }
+    @unsynced_objects.any? { |uo| Regexp.new("^#{uo}").match(object) }
   end
 
   def self.empty_diffs?(diffs)
-    diffs.all? { |_,v| v.empty? }
+    diffs.all? { |_, v| v.empty? }
   end
 
   def self.print_diff_object(diff_object)
-    puts("Synced!") if empty_diffs?(diff_object)
+    puts('Synced!') if empty_diffs?(diff_object)
 
     if diff_object[:missing_local].any?
-      puts("-" * 70)
+      puts('-' * 70)
       puts("\nThese are missing from local harddrive:")
-      diff_object[:missing_local].each{ |o| puts("- #{o}") }
-      puts("\n" + "-" * 70 + "\n" )
+      diff_object[:missing_local].each { |o| puts("- #{o}") }
+      puts("\n#{'-' * 70}\n")
     end
 
-    if diff_object[:missing_drive].any?
-      puts("\nThese are missing from Google Drive:")
-      diff_object[:missing_drive].each{ |o| puts("- #{o}") }
-      puts("-" * 70)
-    end
+    return unless diff_object[:missing_drive].any?
+
+    puts("\nThese are missing from Google Drive:")
+    diff_object[:missing_drive].each { |o| puts("- #{o}") }
+    puts('-' * 70)
   end
 end
