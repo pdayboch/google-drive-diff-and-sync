@@ -2,15 +2,20 @@
 
 require 'google/apis/drive_v3'
 require 'googleauth'
+require 'concurrent-ruby'
 
 class DriveApi
   APPLICATION_NAME = 'Drive API Ruby Compare Directories'
   FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
   OAUTH_SCOPES = [Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY].freeze
 
-  def initialize(service_account_key_path)
+  def initialize(service_account_key_path, max_concurrent_requests: 10)
     @service_account_key_path = service_account_key_path
     @drive_service = get_drive_service
+    @max_concurrent_requests = max_concurrent_requests
+    @semaphore = Mutex.new
+    @files = Concurrent::Array.new
+    @folders = Concurrent::Array.new
   end
 
   def get_all_folders_and_files(top_folder_name)
@@ -36,17 +41,12 @@ class DriveApi
   def fetch_objects_recursive(
     folder_metadata:,
     path: '',
-    files: [],
-    folders: [],
-    page_token: nil,
-    count_fetches: { count: 0 }
+    page_token: nil
   )
+    pool = Concurrent::FixedThreadPool.new(@max_concurrent_requests)
+
     begin
       query = "'#{folder_metadata.id}' in parents and trashed = false"
-
-      count_fetches[:count] += 1
-      print('.') if (count_fetches[:count] % 15).zero?
-
       response = @drive_service.list_files(
         q: query,
         spaces: 'drive',
@@ -55,42 +55,59 @@ class DriveApi
         page_token: page_token
       )
 
+      # Process files and folders concurrently
       response.files.each do |file|
-        full_path = path + file.name
+        pool.post do
+          full_path = path + file.name
 
-        if file.mime_type == FOLDER_MIME_TYPE
-          folders << "#{full_path}/"
+          if file.mime_type == FOLDER_MIME_TYPE
+            @semaphore.synchronize do
+              @folders << "#{full_path}/"
+            end
 
-          fetch_objects_recursive(
-            folder_metadata: file,
-            path: "#{full_path}/",
-            files: files,
-            folders: folders,
-            page_token: nil,
-            count_fetches: count_fetches
-          )
-        else
-          files << full_path
+            # Recursively fetch this folder's contents
+            subfolder_result = fetch_objects_recursive(
+              folder_metadata: file,
+              path: "#{full_path}/"
+            )
+
+            # Merge results from subfolder
+            @semaphore.synchronize do
+              @files.concat(subfolder_result[:files])
+              @folders.concat(subfolder_result[:folders])
+            end
+          else
+            @semaphore.synchronize do
+              @files << full_path
+            end
+          end
         end
       end
 
-      # Recursive call to continue listing if there's another page of results
+      # Handle pagination if needed concurrently
       if response.next_page_token
-        puts('there is a next page')
-        fetch_objects_recursive(
-          folder_metadata: folder_metadata,
-          path: path,
-          files: files,
-          folders: folders,
-          page_token: response.next_page_token,
-          count_fetches: count_fetches
-        )
+        pool.post do
+          next_page_result = fetch_objects_recursive(
+            folder_metadata: folder_metadata,
+            path: path,
+            page_token: response.next_page_token
+          )
+
+          @semaphore.synchronize do
+            @files.concat(next_page_result[:files])
+            @folders.concat(next_page_result[:folders])
+          end
+        end
       end
+
+      # Wait for all tasks to complete
+      pool.shutdown
+      pool.wait_for_termination
     rescue Google::Apis::ClientError => e
       puts "An error occurred while fetching Google Drive objects: #{e.message}"
     end
 
-    { files: files, folders: folders }
+    { files: @files.uniq, folders: @folders.uniq }
   end
 
   def get_drive_service

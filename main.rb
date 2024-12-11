@@ -14,7 +14,7 @@ class Main
 
   def initialize
     @unsynced_list = YAML.load_file(UNSYNCED_LIST_PATH)[:unsynced_objects]
-    @drive_api = DriveApi.new(GOOGLE_DRIVE_CREDS_PATH)
+    @drive_api = DriveApi.new(GOOGLE_DRIVE_CREDS_PATH, max_concurrent_requests: 30)
   end
 
   def run
