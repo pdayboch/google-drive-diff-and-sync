@@ -27,7 +27,7 @@ class Main
       local_folders_and_files,
       drive_folders_and_files,
       unsynced_list
-    ).get_diffs
+    ).diffs
 
     FileTreeDiffer.print_diff_object(diffs)
   rescue LocalFileObjects::VolumeNotConnectedError => e

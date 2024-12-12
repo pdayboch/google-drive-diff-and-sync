@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class FileTreeDiffer
-  attr_reader :local_folders, :local_files, :drive_folders, :drive_files, :unsynced_objects
-
   def initialize(local_objects, drive_objects, unsynced_list)
     @local_folders = local_objects[:folders]
     @local_files = local_objects[:files]
@@ -11,18 +9,16 @@ class FileTreeDiffer
     @unsynced_objects = unsynced_list
   end
 
-  def get_diffs
-    missing_local_folders = get_missing_local_folders
-    missing_drive_folders = get_missing_drive_folders
-    missing_local_files = get_missing_local_files(missing_local_folders)
-    missing_drive_files = get_missing_drive_files(missing_drive_folders)
+  def diffs
+    missing_local_files = missing_local_files(missing_local_folders)
+    missing_drive_files = missing_drive_files(missing_drive_folders)
 
     # Google Doc files get converted to office file types when downloaded,
     # so they will show up as missing since the extension isn't identical.
     # This identifies Google Doc files and removes them from the missing lists.
-    google_doc_files = get_google_doc_files(missing_local_files, missing_drive_files)
-    missing_drive_files -= google_doc_files[:local]
-    missing_local_files -= google_doc_files[:drive]
+    google_docs = google_doc_files(missing_local_files, missing_drive_files)
+    missing_drive_files -= google_docs[:local]
+    missing_local_files -= google_docs[:drive]
 
     {
       missing_local: (missing_local_folders + missing_local_files).sort,
@@ -30,39 +26,40 @@ class FileTreeDiffer
     }
   end
 
-  def get_missing_local_folders
-    missing_local_folders = drive_folders - local_folders
-    filtered_diffs = []
-    missing_local_folders.sort.each do |folder|
-      next if unsynced_object?(folder)
+  def missing_local_folders
+    @missing_local_folders ||= begin
+      filtered_diffs = []
+      (@drive_folders - @local_folders).sort.each do |folder|
+        next if unsynced_object?(folder)
 
-      # Ignore all diffs under a subfolder that's already missing and logged.
-      filtered_diffs << folder if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
+        # Ignore all diffs under a subfolder that's already missing and logged.
+        filtered_diffs << folder if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
+      end
+
+      filtered_diffs
     end
-
-    filtered_diffs
   end
 
-  def get_missing_drive_folders
-    missing_drive_folders = local_folders - drive_folders
-    filtered_diffs = []
-    missing_drive_folders.sort.each do |folder|
-      next if unsynced_object?(folder)
+  def missing_drive_folders
+    @missing_drive_folders ||= begin
+      filtered_diffs = []
+      (@local_folders - @drive_folders).sort.each do |folder|
+        next if unsynced_object?(folder)
 
-      # Ignore all diffs under a subfolder that's already missing and logged.
-      # Ex: logged folder is 'Documents/Financial/Chase/'
-      # and new missing folder is 'Documents/Financial/Chase/Statements',
-      # we dont want to log the subfolder since the parent is already logged.
-      filtered_diffs << folder if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
+        # Ignore all diffs under a subfolder that's already missing and logged.
+        # Ex: logged folder is 'Documents/Financial/Chase/'
+        # and new missing folder is 'Documents/Financial/Chase/Statements',
+        # we dont want to log the subfolder since the parent is already logged.
+        filtered_diffs << folder if filtered_diffs.none? { |logged_diff| folder.include?(logged_diff) }
+      end
+
+      filtered_diffs
     end
-
-    filtered_diffs
   end
 
-  def get_missing_local_files(missing_local_folders)
-    missing_local_files = drive_files - local_files
+  def missing_local_files(missing_local_folders)
     filtered_diffs = []
-    missing_local_files.each do |file|
+    (@drive_files - @local_files).each do |file|
       next if unsynced_object?(file)
 
       filtered_diffs << file if missing_local_folders.none? { |logged_folder| file.include?(logged_folder) }
@@ -71,10 +68,9 @@ class FileTreeDiffer
     filtered_diffs
   end
 
-  def get_missing_drive_files(missing_drive_folders)
-    missing_drive_files = local_files - drive_files
+  def missing_drive_files(missing_drive_folders)
     filtered_diffs = []
-    missing_drive_files.each do |file|
+    (@local_files - @drive_files).each do |file|
       next if unsynced_object?(file)
 
       filtered_diffs << file if missing_drive_folders.none? { |logged_folder| file.include?(logged_folder) }
@@ -83,7 +79,7 @@ class FileTreeDiffer
     filtered_diffs
   end
 
-  def get_google_doc_files(drive_only_files, local_only_files)
+  def google_doc_files(drive_only_files, local_only_files)
     local_google_doc_files = []
     drive_google_doc_files = []
 
