@@ -14,14 +14,14 @@ class Main
 
   def initialize
     @unsynced_list = YAML.load_file(UNSYNCED_LIST_PATH)[:unsynced_objects]
-    @drive_api = DriveApi.new(GOOGLE_DRIVE_CREDS_PATH, max_concurrent_requests: 30)
+    @drive_api = DriveApi.new(GOOGLE_DRIVE_CREDS_PATH)
   end
 
   def run
     local_folders_and_files = LocalFileObjects
                               .get_all_folders_and_files('/Volumes/Phil Backup', 'Documents')
 
-    drive_folders_and_files = drive_api.get_all_folders_and_files('Documents')
+    drive_folders_and_files = drive_api.fetch_all_folders_and_files
 
     diffs = FileTreeDiffer.new(
       local_folders_and_files,

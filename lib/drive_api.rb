@@ -2,119 +2,84 @@
 
 require 'google/apis/drive_v3'
 require 'googleauth'
-require 'concurrent-ruby'
 
 class DriveApi
   APPLICATION_NAME = 'Drive API Ruby Compare Directories'
   FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
   OAUTH_SCOPES = [Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY].freeze
 
-  def initialize(service_account_key_path, max_concurrent_requests: 10)
+  def initialize(service_account_key_path)
     @service_account_key_path = service_account_key_path
-    @drive_service = get_drive_service
-    @max_concurrent_requests = max_concurrent_requests
-    @semaphore = Mutex.new
-    @files = Concurrent::Array.new
-    @folders = Concurrent::Array.new
   end
 
-  def get_all_folders_and_files(top_folder_name)
-    folder_metadata = get_folder_metadata_in_root(top_folder_name)
-    fetch_objects_recursive(folder_metadata: folder_metadata)
+  def fetch_all_folders_and_files
+    files = fetch_all_files
+    build_full_paths(files)
   end
 
   private
 
-  # Obtains the metadata of a folder given a name that is located in the root directory
-  def get_folder_metadata_in_root(folder_name)
-    query = "name = '#{folder_name}' and mimeType = '#{FOLDER_MIME_TYPE}' and trashed = false"
-    response = @drive_service.list_files(
-      q: query,
-      spaces: 'drive',
-      fields: 'files(id, name, parents)'
-    )
+  def fetch_all_files
+    all_files = []
+    page_token = nil
 
-    # Look for the folder with no parents (it's in the root)
-    response.files.find { |file| file.parents.nil? }
-  end
-
-  def fetch_objects_recursive(
-    folder_metadata:,
-    path: '',
-    page_token: nil
-  )
-    pool = Concurrent::FixedThreadPool.new(@max_concurrent_requests)
-
-    begin
-      query = "'#{folder_metadata.id}' in parents and trashed = false"
-      response = @drive_service.list_files(
-        q: query,
+    loop do
+      response = drive_service.list_files(
+        q: 'trashed = false',
         spaces: 'drive',
-        fields: 'nextPageToken, files(id, name, mime_type)',
+        fields: 'nextPageToken, files(id, name, mimeType, parents)',
         page_size: 1000,
         page_token: page_token
       )
+      puts("fetched #{response.files.size} objects from Drive")
 
-      # Process files and folders concurrently
-      response.files.each do |file|
-        pool.post do
-          full_path = path + file.name
+      all_files.concat(response.files)
+      page_token = response.next_page_token
 
-          if file.mime_type == FOLDER_MIME_TYPE
-            @semaphore.synchronize do
-              @folders << "#{full_path}/"
-            end
-
-            # Recursively fetch this folder's contents
-            subfolder_result = fetch_objects_recursive(
-              folder_metadata: file,
-              path: "#{full_path}/"
-            )
-
-            # Merge results from subfolder
-            @semaphore.synchronize do
-              @files.concat(subfolder_result[:files])
-              @folders.concat(subfolder_result[:folders])
-            end
-          else
-            @semaphore.synchronize do
-              @files << full_path
-            end
-          end
-        end
-      end
-
-      # Handle pagination if needed concurrently
-      if response.next_page_token
-        pool.post do
-          next_page_result = fetch_objects_recursive(
-            folder_metadata: folder_metadata,
-            path: path,
-            page_token: response.next_page_token
-          )
-
-          @semaphore.synchronize do
-            @files.concat(next_page_result[:files])
-            @folders.concat(next_page_result[:folders])
-          end
-        end
-      end
-
-      # Wait for all tasks to complete
-      pool.shutdown
-      pool.wait_for_termination
-    rescue Google::Apis::ClientError => e
-      puts "An error occurred while fetching Google Drive objects: #{e.message}"
+      break unless page_token
     end
 
-    { files: @files.uniq, folders: @folders.uniq }
+    all_files
   end
 
-  def get_drive_service
-    drive_service = Google::Apis::DriveV3::DriveService.new
-    drive_service.client_options.application_name = APPLICATION_NAME
-    drive_service.authorization = authorize
-    drive_service
+  def build_full_paths(files)
+    # Create a lookup hash for quick parent resolution
+    files_by_id = files.map { |f| [f.id, f] }.to_h
+
+    folders = files.select { |f| f.mime_type == FOLDER_MIME_TYPE }
+    regular_files = files.reject { |f| f.mime_type == FOLDER_MIME_TYPE }
+
+    {
+      folders: build_recursive_paths(folders, files_by_id),
+      files: build_recursive_paths(regular_files, files_by_id)
+    }
+  end
+
+  def build_recursive_paths(items, files_by_id)
+    items.map do |item|
+      full_path = trace_path(item, files_by_id)
+      "#{full_path}#{item.name}"
+    end
+  end
+
+  def trace_path(item, files_by_id, current_path = '')
+    return current_path if item.parents.nil?
+
+    parent_id = item.parents.first
+    parent = files_by_id[parent_id]
+
+    return current_path unless parent
+
+    trace_path(parent, files_by_id, "#{parent.name}/#{current_path}")
+  end
+
+  def drive_service
+    @drive_service ||= begin
+      drive_service = Google::Apis::DriveV3::DriveService.new
+      drive_service.client_options.application_name = APPLICATION_NAME
+      drive_service.authorization = authorize
+      drive_service
+    end
   end
 
   def authorize
