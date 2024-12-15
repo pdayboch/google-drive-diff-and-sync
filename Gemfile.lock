@@ -7,6 +7,7 @@ GEM
     base64 (0.2.0)
     declarative (0.0.20)
     diff-lcs (1.5.1)
+    docile (1.4.1)
     faraday (2.12.2)
       faraday-net_http (>= 2.0, < 3.5)
       json
@@ -39,7 +40,7 @@ GEM
     jwt (2.9.3)
       base64
     language_server-protocol (3.17.0.3)
-    logger (1.6.2)
+    logger (1.6.3)
     mini_mime (1.1.5)
     multi_json (1.15.0)
     mutex_m (0.3.0)
@@ -72,7 +73,7 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-support (3.13.2)
-    rubocop (1.69.1)
+    rubocop (1.69.2)
       json (~> 2.3)
       language_server-protocol (>= 3.17.0)
       parallel (~> 1.10)
@@ -82,7 +83,7 @@ GEM
       rubocop-ast (>= 1.36.2, < 2.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 2.4.0, < 4.0)
-    rubocop-ast (1.36.2)
+    rubocop-ast (1.37.0)
       parser (>= 3.3.1.0)
     ruby-progressbar (1.13.0)
     signet (0.19.0)
@@ -90,6 +91,12 @@ GEM
       faraday (>= 0.17.5, < 3.a)
       jwt (>= 1.5, < 3.0)
       multi_json (~> 1.10)
+    simplecov (0.22.0)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+      simplecov_json_formatter (~> 0.1)
+    simplecov-html (0.13.1)
+    simplecov_json_formatter (0.1.4)
     trailblazer-option (0.1.2)
     uber (0.1.0)
     unicode-display_width (3.1.2)
@@ -105,6 +112,7 @@ DEPENDENCIES
   google-apis-drive_v3
   rspec
   rubocop
+  simplecov
 
 BUNDLED WITH
    2.5.9

@@ -2,6 +2,7 @@
 
 require 'google/apis/drive_v3'
 require 'googleauth'
+require './lib/files/drive_file_metadata'
 
 class DriveApi
   APPLICATION_NAME = 'Drive API Ruby Compare Directories'
@@ -12,14 +13,14 @@ class DriveApi
     @service_account_key_path = service_account_key_path
   end
 
-  def fetch_all_folders_and_files
-    files = fetch_all_files
+  def all_files_metadata
+    files = fetch_metadata_from_drive
     build_full_paths(files)
   end
 
   private
 
-  def fetch_all_files
+  def fetch_metadata_from_drive
     all_files = []
     page_token = nil
 
@@ -27,15 +28,13 @@ class DriveApi
       response = drive_service.list_files(
         q: 'trashed = false',
         spaces: 'drive',
-        fields: 'nextPageToken, files(id, name, mimeType, parents)',
+        fields: 'nextPageToken, files(id, name, mimeType, parents, modifiedTime)',
         page_size: 1000,
         page_token: page_token
       )
       puts("fetched #{response.files.size} objects from Drive")
-
       all_files.concat(response.files)
       page_token = response.next_page_token
-
       break unless page_token
     end
 
@@ -45,20 +44,20 @@ class DriveApi
   def build_full_paths(files)
     # Create a lookup hash for quick parent resolution
     files_by_id = files.map { |f| [f.id, f] }.to_h
-
-    folders = files.select { |f| f.mime_type == FOLDER_MIME_TYPE }
-    regular_files = files.reject { |f| f.mime_type == FOLDER_MIME_TYPE }
-
-    {
-      folders: build_recursive_paths(folders, files_by_id),
-      files: build_recursive_paths(regular_files, files_by_id)
-    }
+    build_recursive_paths(files, files_by_id)
   end
 
   def build_recursive_paths(items, files_by_id)
     items.map do |item|
       full_path = trace_path(item, files_by_id)
-      "#{full_path}#{item.name}"
+      full_path_with_name = "#{full_path}#{item.name}"
+
+      Files::DriveFileMetadata.new(
+        full_path_with_name,
+        item.mime_type == FOLDER_MIME_TYPE,
+        item.modified_time,
+        item.id
+      )
     end
   end
 

@@ -2,3 +2,6 @@ service-account-key.json
 unsynced_list.yaml
 drive_folder_list.csv
 drive_file_list.csv
+
+.byebug_history
+coverage/*

@@ -2,418 +2,344 @@
 
 require 'spec_helper'
 require './lib/file_tree_differ'
+require './lib/files/file_metadata'
+require './lib/files/drive_file_metadata'
 
 RSpec.describe FileTreeDiffer do
-  describe '#get_diffs' do
-    context 'without unsynced list' do
-      context 'missing only files' do
-        context 'missing local only' do
-          it 'returns correct diffs' do
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: []
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
+  describe '#diff' do
+    context 'fully synced' do
+      it 'returns correct empty diff' do
+        root = Files::FileMetadata.new('Docs', true, Time.now)
+        folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+        synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+        d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+        d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+        d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+        local_files = [root, folder1, synced_file]
+        drive_files = [d_root, d_folder1, d_synced_file]
+        diffs = FileTreeDiffer.new(
+          local_files,
+          drive_files,
+          []
+        ).diff
 
-            expect(diffs[:missing_local])
-              .to include('docs/foo/bar.pdf')
-            expect(diffs[:missing_drive])
-              .to be_empty
-          end
-        end
+        expect(diffs).to eq(local_only: [], drive_only: [])
+      end
+    end
 
-        context 'missing drive only' do
-          it 'returns correct diffs' do
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: []
-            }
+    context 'unsynced files' do
+      context 'from local' do # missing on Drive
+        it 'returns correct diffs' do
+          root = Files::FileMetadata.new('Docs', true, Time.now)
+          folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+          synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+          unsynced_file = Files::FileMetadata.new('Docs/subfolder1/unsynced_file.txt', false, Time.now)
+          d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+          d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+          d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+          local_files = [root, folder1, synced_file, unsynced_file]
+          drive_files = [d_root, d_folder1, d_synced_file]
+          diffs = FileTreeDiffer.new(
+            local_files,
+            drive_files,
+            []
+          ).diff
 
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to include('docs/foo/bar.pdf')
-          end
-        end
-
-        context 'missing drive and local' do
-          it 'returns correct diffs' do
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/biz.pdf']
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to include('docs/foo/biz.pdf')
-            expect(diffs[:missing_drive])
-              .to include('docs/foo/bar.pdf')
-          end
-        end
-
-        context 'when file is google doc and converted locally' do
-          it 'does not return the file as missing' do
-            google_doc_file = 'docs/foo/google_doc'
-            local_file = "#{google_doc_file}.docx"
-
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: [local_file]
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: [google_doc_file]
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to be_empty
-          end
+          expect(diffs[:local_only].map(&:path)).to eq([unsynced_file.path])
+          expect(diffs[:drive_only]).to eq([])
         end
       end
 
-      context 'missing folders and files' do
-        context 'missing local only' do
-          it 'returns the directory only' do
-            local_objects = {
-              folders: ['docs/'],
-              files: []
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
+      context 'from drive' do # missing on local
+        it 'returns correct diffs' do
+          root = Files::FileMetadata.new('Docs', true, Time.now)
+          folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+          synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+          d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+          d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+          d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+          d_unsynced_file = Files::DriveFileMetadata.new('Docs/subfolder1/missing_file.txt', false, Time.now, 4)
+          local_files = [root, folder1, synced_file]
+          drive_files = [d_root, d_folder1, d_synced_file, d_unsynced_file]
+          diffs = FileTreeDiffer.new(
+            local_files,
+            drive_files,
+            []
+          ).diff
 
+          expect(diffs[:local_only]).to eq([])
+          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_file.path])
+        end
+      end
+
+      context 'from each local and drive' do
+        it 'returns correct diffs' do
+          root = Files::FileMetadata.new('Docs', true, Time.now)
+          folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+          synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+          unsynced_file = Files::FileMetadata.new('Docs/subfolder1/unsynced_file.txt', false, Time.now)
+          d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+          d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+          d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+          d_unsynced_file = Files::DriveFileMetadata.new('Docs/subfolder1/d_unsynced_file.txt', false, Time.now, 4)
+          local_files = [root, folder1, synced_file, unsynced_file]
+          drive_files = [d_root, d_folder1, d_synced_file, d_unsynced_file]
+          diffs = FileTreeDiffer.new(
+            local_files,
+            drive_files,
+            []
+          ).diff
+
+          expect(diffs[:local_only].map(&:path)).to eq([unsynced_file.path])
+          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_file.path])
+        end
+      end
+
+      context 'with unsynced_list' do
+        context 'from local' do # missing on Drive
+          it 'returns correct empty diff' do
+            root = Files::FileMetadata.new('Docs', true, Time.now)
+            folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+            synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+            unsynced_file = Files::FileMetadata.new('Docs/subfolder1/unsynced_file.txt', false, Time.now)
+            d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+            d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+            d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+            local_files = [root, folder1, synced_file, unsynced_file]
+            drive_files = [d_root, d_folder1, d_synced_file]
             diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
+              local_files,
+              drive_files,
+              [unsynced_file.path]
+            ).diff
 
-            expect(diffs[:missing_local])
-              .to include('docs/foo/')
-            expect(diffs[:missing_local])
-              .not_to include('docs/foo/bar.pdf')
-            expect(diffs[:missing_drive])
-              .to be_empty
+            expect(diffs[:local_only]).to eq([])
+            expect(diffs[:drive_only]).to eq([])
           end
         end
 
-        context 'missing drive only' do
-          it 'returns the directory only' do
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
-            drive_objects = {
-              folders: ['docs/'],
-              files: []
-            }
-
+        context 'from drive' do # missing on local
+          it 'returns correct diffs' do
+            root = Files::FileMetadata.new('Docs', true, Time.now)
+            folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+            synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+            d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+            d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+            d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+            d_unsynced_file = Files::DriveFileMetadata.new('Docs/subfolder1/missing_file.txt', false, Time.now, 4)
+            local_files = [root, folder1, synced_file]
+            drive_files = [d_root, d_folder1, d_synced_file, d_unsynced_file]
             diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
+              local_files,
+              drive_files,
+              [d_unsynced_file.path]
+            ).diff
 
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to include('docs/foo/')
-            expect(diffs[:missing_drive])
-              .not_to include('docs/foo/bar.pdf')
-          end
-        end
-
-        context 'missing drive and local' do
-          it 'returns the directory only' do
-            local_objects = {
-              folders: ['docs/', 'docs/biz/'],
-              files: ['docs/biz/baz.pdf']
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              []
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to include('docs/foo/')
-            expect(diffs[:missing_local])
-              .not_to include('docs/foo/bar.pdf')
-            expect(diffs[:missing_drive])
-              .to include('docs/biz/')
-            expect(diffs[:missing_drive])
-              .not_to include('docs/biz/baz.pdf')
+            expect(diffs[:local_only]).to eq([])
+            expect(diffs[:drive_only]).to eq([])
           end
         end
       end
     end
 
-    context 'with unsynced list' do
-      context 'missing only files' do
-        context 'missing local only' do
-          it 'returns correct diffs' do
-            unsynced_file = 'docs/foo/dont_sync.jpg'
+    context 'unsynced folders' do
+      context 'from local' do # missing on Drive
+        it 'returns correct diffs' do
+          root = Files::FileMetadata.new('Docs', true, Time.now)
+          folder = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+          synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+          unsynced_folder = Files::FileMetadata.new('Docs/subfolder2', true, Time.now)
+          unsynced_file = Files::FileMetadata.new('Docs/subfolder2/unsynced_file.txt', false, Time.now)
+          d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+          d_folder = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+          d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+          local_files = [root, folder, synced_file, unsynced_folder, unsynced_file]
+          drive_files = [d_root, d_folder, d_synced_file]
+          diffs = FileTreeDiffer.new(
+            local_files,
+            drive_files,
+            []
+          ).diff
 
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: []
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf', unsynced_file]
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_file]
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to include('docs/foo/bar.pdf')
-            expect(diffs[:missing_local])
-              .not_to include(unsynced_file)
-            expect(diffs[:missing_drive])
-              .to be_empty
-          end
-        end
-
-        context 'missing drive only' do
-          it 'returns correct diffs' do
-            unsynced_file = 'docs/foo/dont_sync.jpg'
-
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf', unsynced_file]
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: []
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_file]
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to include('docs/foo/bar.pdf')
-            expect(diffs[:missing_drive])
-              .not_to include(unsynced_file)
-          end
-        end
-
-        context 'missing drive and local' do
-          it 'returns correct diffs' do
-            unsynced_local_file = 'docs/foo/local_dont_sync.jpg'
-            unsynced_drive_file = 'docs/foo/drive_dont_sync.jpg'
-
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf', unsynced_local_file]
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/biz.pdf', unsynced_drive_file]
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_drive_file, unsynced_local_file]
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to include('docs/foo/biz.pdf')
-            expect(diffs[:missing_local])
-              .not_to include(unsynced_drive_file)
-            expect(diffs[:missing_drive])
-              .to include('docs/foo/bar.pdf')
-            expect(diffs[:missing_drive])
-              .not_to include(unsynced_local_file)
-          end
-        end
-
-        context 'when file is google doc and converted locally' do
-          it 'does not return the file as missing' do
-            unsynced_drive_file = 'docs/foo/google_doc'
-            google_doc_file = 'docs/foo/google_doc'
-            local_file = "#{google_doc_file}.docx"
-
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: [local_file]
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: [google_doc_file]
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_drive_file]
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to be_empty
-          end
+          expect(diffs[:local_only].map(&:path)).to eq([unsynced_folder.path])
+          expect(diffs[:drive_only]).to eq([])
         end
       end
 
-      context 'missing folders and files' do
-        context 'missing local only' do
-          it 'returns the directory only' do
-            unsynced_folder = 'docs/dont_sync/'
-            unsynced_file_in_folder = 'docs/dont_sync/file.txt'
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/', unsynced_folder],
-              files: ['docs/foo/bar.pdf', unsynced_file_in_folder]
-            }
-            local_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
+      context 'from drive' do # missing on local
+        it 'returns correct diffs' do
+          root = Files::FileMetadata.new('Docs', true, Time.now)
+          folder = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+          synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+          d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+          d_folder = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+          d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+          d_unsynced_folder = Files::DriveFileMetadata.new('Docs/subfolder2', true, Time.now, 4)
+          d_unsynced_file = Files::DriveFileMetadata.new('Docs/subfolder2/unsynced_file.txt', false, Time.now, 5)
+          local_files = [root, folder, synced_file]
+          drive_files = [d_root, d_folder, d_synced_file, d_unsynced_folder, d_unsynced_file]
+          diffs = FileTreeDiffer.new(
+            local_files,
+            drive_files,
+            []
+          ).diff
 
+          expect(diffs[:local_only]).to eq([])
+          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_folder.path])
+        end
+      end
+
+      context 'from each local and drive' do
+        it 'returns correct diffs' do
+          root = Files::FileMetadata.new('Docs', true, Time.now)
+          folder = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+          synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+          unsynced_folder = Files::FileMetadata.new('Docs/subfolder2', true, Time.now)
+          unsynced_file = Files::FileMetadata.new('Docs/subfolder2/unsynced_file.txt', false, Time.now)
+          d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+          d_folder = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+          d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+          d_unsynced_folder = Files::DriveFileMetadata.new('Docs/d_subfolder2', true, Time.now, 4)
+          d_unsynced_file = Files::DriveFileMetadata.new('Docs/d_subfolder2/d_unsynced_file.txt', false, Time.now, 5)
+          local_files = [root, folder, synced_file, unsynced_folder, unsynced_file]
+          drive_files = [d_root, d_folder, d_synced_file, d_unsynced_folder, d_unsynced_file]
+          diffs = FileTreeDiffer.new(
+            local_files,
+            drive_files,
+            []
+          ).diff
+
+          expect(diffs[:local_only].map(&:path)).to eq([unsynced_folder.path])
+          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_folder.path])
+        end
+      end
+
+      context 'with unsynced_list' do
+        context 'from local' do # missing on Drive
+          it 'returns correct empty diff' do
+            root = Files::FileMetadata.new('Docs', true, Time.now)
+            folder = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+            synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+            unsynced_folder = Files::FileMetadata.new('Docs/subfolder2', true, Time.now)
+            unsynced_file = Files::FileMetadata.new('Docs/subfolder2/unsynced_file.txt', false, Time.now)
+            d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+            d_folder = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+            d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+            local_files = [root, folder, synced_file, unsynced_folder, unsynced_file]
+            drive_files = [d_root, d_folder, d_synced_file]
             diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_folder]
-            ).get_diffs
+              local_files,
+              drive_files,
+              [unsynced_folder.path]
+            ).diff
 
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to be_empty
+            expect(diffs[:local_only]).to eq([])
+            expect(diffs[:drive_only]).to eq([])
           end
         end
 
-        context 'missing drive only' do
-          it 'returns the directory only' do
-            unsynced_folder = 'docs/dont_sync/'
-            unsynced_file_in_folder = 'docs/dont_sync/file.txt'
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/'],
-              files: ['docs/foo/bar.pdf']
-            }
-            local_objects = {
-              folders: ['docs/', 'docs/foo/', unsynced_folder],
-              files: ['docs/foo/bar.pdf', unsynced_file_in_folder]
-            }
-
+        context 'from drive' do # missing on local
+          it 'returns correct empty diff' do
+            root = Files::FileMetadata.new('Docs', true, Time.now)
+            folder = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+            synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
+            d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+            d_folder = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+            d_synced_file = Files::DriveFileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now, 3)
+            d_unsynced_folder = Files::DriveFileMetadata.new('Docs/subfolder2', true, Time.now, 4)
+            d_unsynced_file = Files::DriveFileMetadata.new('Docs/subfolder2/unsynced_file.txt', false, Time.now, 5)
+            local_files = [root, folder, synced_file]
+            drive_files = [d_root, d_folder, d_synced_file, d_unsynced_folder, d_unsynced_file]
             diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_folder]
-            ).get_diffs
+              local_files,
+              drive_files,
+              [d_unsynced_folder.path]
+            ).diff
 
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to be_empty
+            expect(diffs[:local_only]).to eq([])
+            expect(diffs[:drive_only]).to eq([])
           end
         end
+      end
+    end
 
-        context 'missing drive and local' do
-          it 'returns correct diffs' do
-            unsynced_drive_folder = 'docs/dont_sync_drive/'
-            unsynced_drive_file = 'docs/dont_sync_drive/drive.txt'
-            unsynced_local_folder = 'docs/dont_sync_local/'
-            unsynced_local_file = 'docs/dont_sync_local/local.txt'
+    context 'google drive docs' do
+      it 'returns correct empty diff' do
+        root = Files::FileMetadata.new('Docs', true, Time.now)
+        folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
+        doc_file = Files::FileMetadata.new('Docs/subfolder1/some_sheet.csv', false, Time.now)
+        d_root = Files::DriveFileMetadata.new('Docs', true, Time.now, 1)
+        d_folder1 = Files::DriveFileMetadata.new('Docs/subfolder1', true, Time.now, 2)
+        d_doc_file = Files::DriveFileMetadata.new('Docs/subfolder1/some_sheet', false, Time.now, 3)
+        local_files = [root, folder1, doc_file]
+        drive_files = [d_root, d_folder1, d_doc_file]
+        diffs = FileTreeDiffer.new(
+          local_files,
+          drive_files,
+          []
+        ).diff
 
-            local_objects = {
-              folders: ['docs/', 'docs/foo/', unsynced_local_folder],
-              files: ['docs/foo/bar.pdf', unsynced_local_file]
-            }
-            drive_objects = {
-              folders: ['docs/', 'docs/foo/', unsynced_drive_folder],
-              files: ['docs/foo/bar.pdf', unsynced_drive_file]
-            }
-
-            diffs = FileTreeDiffer.new(
-              local_objects,
-              drive_objects,
-              [unsynced_drive_folder, unsynced_local_folder]
-            ).get_diffs
-
-            expect(diffs[:missing_local])
-              .to be_empty
-            expect(diffs[:missing_drive])
-              .to be_empty
-          end
-        end
+        expect(diffs).to eq(local_only: [], drive_only: [])
       end
     end
   end
 
-  describe '.print_diff_object' do
-    context 'with diffs' do
-      it 'prints correct diffs' do
-        diffs = { missing_local: ['something'], missing_drive: ['something2'] }
-        expect { described_class.print_diff_object(diffs) }
-          .to output(/These are missing from local harddrive:/).to_stdout
-        expect { described_class.print_diff_object(diffs) }
-          .to output(/something/).to_stdout
-        expect { described_class.print_diff_object(diffs) }
-          .to output(/#{"#{'-' * 70}\n\n"}/).to_stdout
-        expect { described_class.print_diff_object(diffs) }
-          .to output(/These are missing from Google Drive:/).to_stdout
-        expect { described_class.print_diff_object(diffs) }
-          .to output(/something2/).to_stdout
+  describe '.print_diff' do
+    context 'with local_only' do
+      it 'prints correctly' do
+        local_only_file = Files::FileMetadata.new('Docs/folder1/file.txt', false, Time.now)
+        diffs = { local_only: [local_only_file], drive_only: [] }
+        expected_output = <<~OUTPUT
+          ----------------------------------------------------------------------
+          These are missing from Google Drive:
+          - Docs/folder1/file.txt
+          ----------------------------------------------------------------------
+        OUTPUT
+
+        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
       end
     end
 
-    context 'without empty diffs' do
+    context 'with drive_only' do
+      it 'prints correctly' do
+        drive_only_file = Files::DriveFileMetadata.new('Docs/folder1/file.txt', false, Time.now, 1)
+        diffs = { local_only: [], drive_only: [drive_only_file] }
+        expected_output = <<~OUTPUT
+          ----------------------------------------------------------------------
+          These are missing locally:
+          - Docs/folder1/file.txt
+          ----------------------------------------------------------------------
+        OUTPUT
+
+        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
+      end
+    end
+
+    context 'with local_only and drive_only' do
+      it 'prints correctly' do
+        local_only_file = Files::FileMetadata.new('Docs/folder1/file.txt', false, Time.now)
+        drive_only_file = Files::DriveFileMetadata.new('Docs/folder1/drive_file.txt', false, Time.now, 1)
+        diffs = { local_only: [local_only_file], drive_only: [drive_only_file] }
+        expected_output = <<~OUTPUT
+          ----------------------------------------------------------------------
+          These are missing from Google Drive:
+          - Docs/folder1/file.txt
+          ----------------------------------------------------------------------
+          These are missing locally:
+          - Docs/folder1/drive_file.txt
+          ----------------------------------------------------------------------
+        OUTPUT
+
+        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
+      end
+    end
+
+    context 'without diffs' do
       it 'prints synced' do
-        diffs = { missing_local: [], missing_drive: [] }
-        expect { described_class.print_diff_object(diffs) }
-          .to output(/Synced!/).to_stdout
+        diffs = { local_only: [], drive_only: [] }
+        expected_output = "Synced!\n"
+
+        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
       end
     end
   end

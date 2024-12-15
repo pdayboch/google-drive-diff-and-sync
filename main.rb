@@ -10,27 +10,25 @@ GOOGLE_DRIVE_CREDS_PATH = 'service-account-key.json'
 UNSYNCED_LIST_PATH = 'unsynced_list.yaml'
 
 class Main
-  attr_reader :unsynced_list, :drive_api
-
   def initialize
     @unsynced_list = YAML.load_file(UNSYNCED_LIST_PATH)[:unsynced_objects]
     @drive_api = DriveApi.new(GOOGLE_DRIVE_CREDS_PATH)
   end
 
   def run
-    local_folders_and_files = LocalFileObjects
-                              .get_all_folders_and_files('/Volumes/Phil Backup', 'Documents')
+    local_files = LocalFileObjects.new('/Volumes/Phil Backup')
+                                  .all_files_metadata(['Documents'])
 
-    drive_folders_and_files = drive_api.fetch_all_folders_and_files
+    drive_files = @drive_api.all_files_metadata
 
     diffs = FileTreeDiffer.new(
-      local_folders_and_files,
-      drive_folders_and_files,
-      unsynced_list
-    ).diffs
+      local_files,
+      drive_files,
+      @unsynced_list
+    ).diff
 
-    FileTreeDiffer.print_diff_object(diffs)
-  rescue LocalFileObjects::VolumeNotConnectedError => e
+    FileTreeDiffer.print_diff(diffs)
+  rescue LocalFileObjects::InvalidPathError => e
     puts(e.message)
   end
 end
