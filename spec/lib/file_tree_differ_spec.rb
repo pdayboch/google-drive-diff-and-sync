@@ -6,9 +6,9 @@ require './lib/files/file_metadata'
 require './lib/files/drive_file_metadata'
 
 RSpec.describe FileTreeDiffer do
-  describe '#diff' do
+  describe 'compute diff' do
     context 'fully synced' do
-      it 'returns correct empty diff' do
+      it 'returns correct empty diffs' do
         root = Files::FileMetadata.new('Docs', true, Time.now)
         folder1 = Files::FileMetadata.new('Docs/subfolder1', true, Time.now)
         synced_file = Files::FileMetadata.new('Docs/subfolder1/synced_file.txt', false, Time.now)
@@ -18,12 +18,14 @@ RSpec.describe FileTreeDiffer do
         local_files = [root, folder1, synced_file]
         drive_files = [d_root, d_folder1, d_synced_file]
         diffs = FileTreeDiffer.new(
-          local_files,
-          drive_files,
-          []
-        ).diff
+          local_files: local_files,
+          drive_files: drive_files,
+          unsynced_list: []
+        )
 
-        expect(diffs).to eq(local_only: [], drive_only: [])
+        expect(diffs.local_only).to eq([])
+        expect(diffs.drive_only).to eq([])
+        expect(diffs.drive_only_files).to eq([])
       end
     end
 
@@ -40,13 +42,14 @@ RSpec.describe FileTreeDiffer do
           local_files = [root, folder1, synced_file, unsynced_file]
           drive_files = [d_root, d_folder1, d_synced_file]
           diffs = FileTreeDiffer.new(
-            local_files,
-            drive_files,
-            []
-          ).diff
+            local_files: local_files,
+            drive_files: drive_files,
+            unsynced_list: []
+          )
 
-          expect(diffs[:local_only].map(&:path)).to eq([unsynced_file.path])
-          expect(diffs[:drive_only]).to eq([])
+          expect(diffs.local_only.map(&:path)).to eq([unsynced_file.path])
+          expect(diffs.drive_only).to eq([])
+          expect(diffs.drive_only_files).to eq([])
         end
       end
 
@@ -62,13 +65,14 @@ RSpec.describe FileTreeDiffer do
           local_files = [root, folder1, synced_file]
           drive_files = [d_root, d_folder1, d_synced_file, d_unsynced_file]
           diffs = FileTreeDiffer.new(
-            local_files,
-            drive_files,
-            []
-          ).diff
+            local_files: local_files,
+            drive_files: drive_files,
+            unsynced_list: []
+          )
 
-          expect(diffs[:local_only]).to eq([])
-          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_file.path])
+          expect(diffs.local_only).to eq([])
+          expect(diffs.drive_only.map(&:path)).to eq([d_unsynced_file.path])
+          expect(diffs.drive_only_files.map(&:path)).to eq([d_unsynced_file.path])
         end
       end
 
@@ -85,13 +89,14 @@ RSpec.describe FileTreeDiffer do
           local_files = [root, folder1, synced_file, unsynced_file]
           drive_files = [d_root, d_folder1, d_synced_file, d_unsynced_file]
           diffs = FileTreeDiffer.new(
-            local_files,
-            drive_files,
-            []
-          ).diff
+            local_files: local_files,
+            drive_files: drive_files,
+            unsynced_list: []
+          )
 
-          expect(diffs[:local_only].map(&:path)).to eq([unsynced_file.path])
-          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_file.path])
+          expect(diffs.local_only.map(&:path)).to eq([unsynced_file.path])
+          expect(diffs.drive_only.map(&:path)).to eq([d_unsynced_file.path])
+          expect(diffs.drive_only_files.map(&:path)).to eq([d_unsynced_file.path])
         end
       end
 
@@ -108,13 +113,14 @@ RSpec.describe FileTreeDiffer do
             local_files = [root, folder1, synced_file, unsynced_file]
             drive_files = [d_root, d_folder1, d_synced_file]
             diffs = FileTreeDiffer.new(
-              local_files,
-              drive_files,
-              [unsynced_file.path]
-            ).diff
+              local_files: local_files,
+              drive_files: drive_files,
+              unsynced_list: [unsynced_file.path]
+            )
 
-            expect(diffs[:local_only]).to eq([])
-            expect(diffs[:drive_only]).to eq([])
+            expect(diffs.local_only).to eq([])
+            expect(diffs.drive_only).to eq([])
+            expect(diffs.drive_only_files).to eq([])
           end
         end
 
@@ -130,13 +136,14 @@ RSpec.describe FileTreeDiffer do
             local_files = [root, folder1, synced_file]
             drive_files = [d_root, d_folder1, d_synced_file, d_unsynced_file]
             diffs = FileTreeDiffer.new(
-              local_files,
-              drive_files,
-              [d_unsynced_file.path]
-            ).diff
+              local_files: local_files,
+              drive_files: drive_files,
+              unsynced_list: [d_unsynced_file.path]
+            )
 
-            expect(diffs[:local_only]).to eq([])
-            expect(diffs[:drive_only]).to eq([])
+            expect(diffs.local_only).to eq([])
+            expect(diffs.drive_only).to eq([])
+            expect(diffs.drive_only_files).to eq([])
           end
         end
       end
@@ -156,13 +163,14 @@ RSpec.describe FileTreeDiffer do
           local_files = [root, folder, synced_file, unsynced_folder, unsynced_file]
           drive_files = [d_root, d_folder, d_synced_file]
           diffs = FileTreeDiffer.new(
-            local_files,
-            drive_files,
-            []
-          ).diff
+            local_files: local_files,
+            drive_files: drive_files,
+            unsynced_list: []
+          )
 
-          expect(diffs[:local_only].map(&:path)).to eq([unsynced_folder.path])
-          expect(diffs[:drive_only]).to eq([])
+          expect(diffs.local_only.map(&:path)).to eq([unsynced_folder.path, unsynced_file.path])
+          expect(diffs.drive_only).to eq([])
+          expect(diffs.drive_only_files).to eq([])
         end
       end
 
@@ -179,13 +187,14 @@ RSpec.describe FileTreeDiffer do
           local_files = [root, folder, synced_file]
           drive_files = [d_root, d_folder, d_synced_file, d_unsynced_folder, d_unsynced_file]
           diffs = FileTreeDiffer.new(
-            local_files,
-            drive_files,
-            []
-          ).diff
+            local_files: local_files,
+            drive_files: drive_files,
+            unsynced_list: []
+          )
 
-          expect(diffs[:local_only]).to eq([])
-          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_folder.path])
+          expect(diffs.local_only).to eq([])
+          expect(diffs.drive_only.map(&:path)).to eq([d_unsynced_folder.path, d_unsynced_file.path])
+          expect(diffs.drive_only_files.map(&:path)).to eq([d_unsynced_file.path])
         end
       end
 
@@ -204,13 +213,14 @@ RSpec.describe FileTreeDiffer do
           local_files = [root, folder, synced_file, unsynced_folder, unsynced_file]
           drive_files = [d_root, d_folder, d_synced_file, d_unsynced_folder, d_unsynced_file]
           diffs = FileTreeDiffer.new(
-            local_files,
-            drive_files,
-            []
-          ).diff
+            local_files: local_files,
+            drive_files: drive_files,
+            unsynced_list: []
+          )
 
-          expect(diffs[:local_only].map(&:path)).to eq([unsynced_folder.path])
-          expect(diffs[:drive_only].map(&:path)).to eq([d_unsynced_folder.path])
+          expect(diffs.local_only.map(&:path)).to eq([unsynced_folder.path, unsynced_file.path])
+          expect(diffs.drive_only.map(&:path)).to eq([d_unsynced_folder.path, d_unsynced_file.path])
+          expect(diffs.drive_only_files.map(&:path)).to eq([d_unsynced_file.path])
         end
       end
 
@@ -228,13 +238,14 @@ RSpec.describe FileTreeDiffer do
             local_files = [root, folder, synced_file, unsynced_folder, unsynced_file]
             drive_files = [d_root, d_folder, d_synced_file]
             diffs = FileTreeDiffer.new(
-              local_files,
-              drive_files,
-              [unsynced_folder.path]
-            ).diff
+              local_files: local_files,
+              drive_files: drive_files,
+              unsynced_list: [unsynced_folder.path]
+            )
 
-            expect(diffs[:local_only]).to eq([])
-            expect(diffs[:drive_only]).to eq([])
+            expect(diffs.local_only).to eq([])
+            expect(diffs.drive_only).to eq([])
+            expect(diffs.drive_only).to eq([])
           end
         end
 
@@ -251,13 +262,14 @@ RSpec.describe FileTreeDiffer do
             local_files = [root, folder, synced_file]
             drive_files = [d_root, d_folder, d_synced_file, d_unsynced_folder, d_unsynced_file]
             diffs = FileTreeDiffer.new(
-              local_files,
-              drive_files,
-              [d_unsynced_folder.path]
-            ).diff
+              local_files: local_files,
+              drive_files: drive_files,
+              unsynced_list: [d_unsynced_folder.path]
+            )
 
-            expect(diffs[:local_only]).to eq([])
-            expect(diffs[:drive_only]).to eq([])
+            expect(diffs.local_only).to eq([])
+            expect(diffs.drive_only).to eq([])
+            expect(diffs.drive_only_files).to eq([])
           end
         end
       end
@@ -274,21 +286,27 @@ RSpec.describe FileTreeDiffer do
         local_files = [root, folder1, doc_file]
         drive_files = [d_root, d_folder1, d_doc_file]
         diffs = FileTreeDiffer.new(
-          local_files,
-          drive_files,
-          []
-        ).diff
+          local_files: local_files,
+          drive_files: drive_files,
+          unsynced_list: []
+        )
 
-        expect(diffs).to eq(local_only: [], drive_only: [])
+        expect(diffs.local_only).to eq([])
+        expect(diffs.drive_only).to eq([])
+        expect(diffs.drive_only_files).to eq([])
       end
     end
   end
 
-  describe '.print_diff' do
+  describe '#to_s' do
     context 'with local_only' do
-      it 'prints correctly' do
+      it 'returns correct string' do
         local_only_file = Files::FileMetadata.new('Docs/folder1/file.txt', false, Time.now)
-        diffs = { local_only: [local_only_file], drive_only: [] }
+        diffs = FileTreeDiffer.new(
+          local_files: [local_only_file],
+          drive_files: [],
+          unsynced_list: []
+        )
         expected_output = <<~OUTPUT
           ----------------------------------------------------------------------
           These are missing from Google Drive:
@@ -296,14 +314,18 @@ RSpec.describe FileTreeDiffer do
           ----------------------------------------------------------------------
         OUTPUT
 
-        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
+        expect(diffs.to_s).to eq(expected_output)
       end
     end
 
     context 'with drive_only' do
       it 'prints correctly' do
         drive_only_file = Files::DriveFileMetadata.new('Docs/folder1/file.txt', false, Time.now, 1)
-        diffs = { local_only: [], drive_only: [drive_only_file] }
+        diffs = FileTreeDiffer.new(
+          local_files: [],
+          drive_files: [drive_only_file],
+          unsynced_list: []
+        )
         expected_output = <<~OUTPUT
           ----------------------------------------------------------------------
           These are missing locally:
@@ -311,7 +333,7 @@ RSpec.describe FileTreeDiffer do
           ----------------------------------------------------------------------
         OUTPUT
 
-        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
+        expect(diffs.to_s).to eq(expected_output)
       end
     end
 
@@ -319,7 +341,11 @@ RSpec.describe FileTreeDiffer do
       it 'prints correctly' do
         local_only_file = Files::FileMetadata.new('Docs/folder1/file.txt', false, Time.now)
         drive_only_file = Files::DriveFileMetadata.new('Docs/folder1/drive_file.txt', false, Time.now, 1)
-        diffs = { local_only: [local_only_file], drive_only: [drive_only_file] }
+        diffs = FileTreeDiffer.new(
+          local_files: [local_only_file],
+          drive_files: [drive_only_file],
+          unsynced_list: []
+        )
         expected_output = <<~OUTPUT
           ----------------------------------------------------------------------
           These are missing from Google Drive:
@@ -330,16 +356,20 @@ RSpec.describe FileTreeDiffer do
           ----------------------------------------------------------------------
         OUTPUT
 
-        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
+        expect(diffs.to_s).to eq(expected_output)
       end
     end
 
     context 'without diffs' do
       it 'prints synced' do
-        diffs = { local_only: [], drive_only: [] }
-        expected_output = "Synced!\n"
+        diffs = FileTreeDiffer.new(
+          local_files: [],
+          drive_files: [],
+          unsynced_list: []
+        )
+        expected_output = 'Synced!'
 
-        expect { described_class.print_diff(diffs) }.to output(expected_output).to_stdout
+        expect(diffs.to_s).to eq(expected_output)
       end
     end
   end

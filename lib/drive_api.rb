@@ -1,21 +1,40 @@
 # frozen_string_literal: true
 
-require 'google/apis/drive_v3'
-require 'googleauth'
 require './lib/files/drive_file_metadata'
 
 class DriveApi
-  APPLICATION_NAME = 'Drive API Ruby Compare Directories'
   FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
-  OAUTH_SCOPES = [Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY].freeze
 
-  def initialize(service_account_key_path)
-    @service_account_key_path = service_account_key_path
+  def initialize(drive_service)
+    @drive_service = drive_service
   end
 
   def all_files_metadata
     files = fetch_metadata_from_drive
     build_full_paths(files)
+  end
+
+  def download_files(drive_file_metadatas, root_path)
+    raise LocalFileObjects::InvalidPathError, "#{root_path} does not exist." unless Dir.exist?(root_path)
+
+    drive_file_metadatas.each do |file|
+      file_path = File.join(root_path, file.path)
+      FileUtils.mkdir_p(File.dirname(file_path))
+
+      begin
+        @drive_service.get_file(file.drive_id, download_dest: file_path)
+        puts "Downloaded file: #{file.path} to #{root_path}"
+      rescue Google::Apis::ClientError => e
+        puts "Failed to download file #{file.path}:"
+        puts "Error message: #{e.message}"
+        puts "Error status code: #{e.status_code}" if e.respond_to?(:status_code)
+        puts "Error details: #{e.body}" if e.respond_to?(:body)
+      rescue Google::Apis::ServerError => e
+        puts "Server error while downloading file #{file.path}: #{e.message}"
+      rescue StandardError => e
+        puts "An unexpected error occurred for file #{file.path}: #{e.message}"
+      end
+    end
   end
 
   private
@@ -25,9 +44,8 @@ class DriveApi
     page_token = nil
 
     loop do
-      response = drive_service.list_files(
+      response = @drive_service.list_files(
         q: 'trashed = false',
-        spaces: 'drive',
         fields: 'nextPageToken, files(id, name, mimeType, parents, modifiedTime)',
         page_size: 1000,
         page_token: page_token
@@ -70,21 +88,5 @@ class DriveApi
     return current_path unless parent
 
     trace_path(parent, files_by_id, "#{parent.name}/#{current_path}")
-  end
-
-  def drive_service
-    @drive_service ||= begin
-      drive_service = Google::Apis::DriveV3::DriveService.new
-      drive_service.client_options.application_name = APPLICATION_NAME
-      drive_service.authorization = authorize
-      drive_service
-    end
-  end
-
-  def authorize
-    Google::Auth::ServiceAccountCredentials.make_creds(
-      json_key_io: File.open(@service_account_key_path),
-      scope: OAUTH_SCOPES
-    )
   end
 end

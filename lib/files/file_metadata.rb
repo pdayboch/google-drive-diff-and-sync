@@ -16,6 +16,10 @@ module Files
       other_file.path.start_with?("#{path}/")
     end
 
+    def path_includes?(parent_path)
+      !!%r{^#{Regexp.escape(parent_path)}(/|$)}.match(path)
+    end
+
     def to_s
       vars = instance_variables.map do |var|
         "#{var.to_s.gsub('@', '')}: #{instance_variable_get(var)}"

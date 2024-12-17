@@ -1,52 +1,64 @@
 # frozen_string_literal: true
 
 class FileTreeDiffer
-  def self.print_diff(diff)
-    if diff[:local_only].empty? && diff[:drive_only].empty?
-      puts 'Synced!'
-      return
-    end
-
-    puts('-' * 70)
-    if diff[:local_only].any?
-      puts('These are missing from Google Drive:')
-      diff[:local_only].each { |f| puts("- #{f.path}") }
-      puts(('-' * 70))
-    end
-
-    return unless diff[:drive_only].any?
-
-    puts('These are missing locally:')
-    diff[:drive_only].each { |f| puts("- #{f.path}") }
-    puts('-' * 70)
-  end
-
   # local_files - array of FileMetadata objects representing the list of local files and directories.
   # drive_files - array of DriveFileMetadata objects representing the list of remote Drive files and directories.
   # unsynced files - array of strings representing filepaths of files that are not synced between local and Drive.
-  def initialize(local_files, drive_files, unsynced_list)
+  def initialize(local_files:, drive_files:, unsynced_list:)
     @local_files = local_files
     @drive_files = drive_files
     @unsynced_files = unsynced_list
+    @diff_result = compute_diff
   end
 
-  def diff
-    local_only_files = local_files_missing_from_drive
-    drive_only_files = drive_files_missing_from_local
+  def local_only
+    @diff_result[:local_only]
+  end
 
-    local_only_files = filter_within_unsynced_folder(local_only_files)
-    drive_only_files = filter_within_unsynced_folder(drive_only_files)
+  def drive_only
+    @diff_result[:drive_only]
+  end
 
-    filtered_files = filter_google_docs(local_only_files, drive_only_files)
-    filtered_files = filter_unsynced(filtered_files[:local_only], filtered_files[:drive_only])
+  def drive_only_files
+    @diff_result[:drive_only].reject(&:is_directory)
+  end
 
-    {
-      local_only: filtered_files[:local_only],
-      drive_only: filtered_files[:drive_only]
-    }
+  def synced?
+    local_only.empty? && drive_only.empty?
+  end
+
+  def to_s
+    return 'Synced!' if synced?
+
+    str = "#{'-' * 70}\n"
+
+    if local_only.any?
+      str += "These are missing from Google Drive:\n"
+      filter_within_unsynced_folder(local_only).each do |f|
+        str += "- #{f.path}\n"
+      end
+      str += "#{'-' * 70}\n"
+    end
+
+    if drive_only.any?
+      str += "These are missing locally:\n"
+      filter_within_unsynced_folder(drive_only).each do |f|
+        str += "- #{f.path}\n"
+      end
+      str += "#{'-' * 70}\n"
+    end
+
+    str
   end
 
   private
+
+  def compute_diff
+    local_only_files = local_files_missing_from_drive
+    drive_only_files = drive_files_missing_from_local
+    filtered_files = filter_google_docs(local_only_files, drive_only_files)
+    filter_unsynced(filtered_files[:local_only], filtered_files[:drive_only])
+  end
 
   def local_files_missing_from_drive
     @local_files.reject { |local_file| @drive_files.any? { |drive_file| local_file.path == drive_file.path } }
@@ -89,8 +101,8 @@ class FileTreeDiffer
 
   def filter_unsynced(local_only_files, drive_only_files)
     {
-      local_only: local_only_files.reject { |f| @unsynced_files.include?(f.path) },
-      drive_only: drive_only_files.reject { |f| @unsynced_files.include?(f.path) }
+      local_only: local_only_files.reject { |f| @unsynced_files.any? { |uf| f.path_includes?(uf) } },
+      drive_only: drive_only_files.reject { |f| @unsynced_files.any? { |uf| f.path_includes?(uf) } }
     }
   end
 end

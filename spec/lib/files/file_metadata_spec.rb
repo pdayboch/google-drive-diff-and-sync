@@ -61,6 +61,40 @@ RSpec.describe Files::FileMetadata do
     end
   end
 
+  describe '#path_includes?' do
+    context 'when file' do
+      context 'is not in parent_path' do
+        it 'returns correct value' do
+          file = Files::FileMetadata.new('doc/subfolder2/file.txt', false, Time.now)
+          expect(file.path_includes?('doc/subfolder')).to be_falsy
+        end
+      end
+
+      context 'is inside parent_path' do
+        it 'returns correct value' do
+          file = Files::FileMetadata.new('doc/subfolder/subfolder2/file.txt', false, Time.now)
+          expect(file.path_includes?('doc/subfolder')).to be_truthy
+        end
+      end
+    end
+
+    context 'when directory' do
+      context 'is not in parent_path' do
+        it 'returns correct value' do
+          folder = Files::FileMetadata.new('doc/subfolder/subfolder2', true, Time.now)
+          expect(folder.path_includes?('doc/subfolder/subfolder3')).to be_falsy
+        end
+      end
+
+      context 'is inside parent_path' do
+        it 'returns correct value' do
+          folder = Files::FileMetadata.new('doc/subfolder/subfolder2/subfolder3', true, Time.now)
+          expect(folder.path_includes?('doc/subfolder/subfolder2')).to be_truthy
+        end
+      end
+    end
+  end
+
   describe '#to_s' do
     it 'returns a string representation of the object with instance variables' do
       file_metadata = Files::FileMetadata.new('doc/file.txt', false, Time.now)
