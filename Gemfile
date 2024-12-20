@@ -3,6 +3,10 @@
 source 'https://rubygems.org'
 
 gem 'google-apis-drive_v3'
-gem 'rspec'
-gem 'rubocop'
-gem 'simplecov'
+
+group :development do
+  gem 'byebug'
+  gem 'rspec'
+  gem 'rubocop'
+  gem 'simplecov'
+end
