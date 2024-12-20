@@ -299,64 +299,147 @@ RSpec.describe FileTreeDiffer do
   end
 
   describe '#to_s' do
-    context 'with local_only' do
-      it 'returns correct string' do
-        local_only_file = Files::FileMetadata.new('Docs/folder1/file.txt', false, Time.now)
-        diffs = FileTreeDiffer.new(
-          local_files: [local_only_file],
-          drive_files: [],
-          unsynced_list: []
-        )
-        expected_output = <<~OUTPUT
-          ----------------------------------------------------------------------
-          These are missing from Google Drive:
-          - Docs/folder1/file.txt
-          ----------------------------------------------------------------------
-        OUTPUT
+    context 'when summarize_printout is enabled' do
+      context 'with local_only' do
+        it 'returns correct string' do
+          local_only_folder = Files::FileMetadata.new('Docs/folder', true, Time.now)
+          local_only_file = Files::FileMetadata.new('Docs/folder/file.txt', false, Time.now)
+          diffs = FileTreeDiffer.new(
+            local_files: [local_only_folder, local_only_file],
+            drive_files: [],
+            unsynced_list: [],
+            summarize_printout: true
+          )
+          expected_output = <<~OUTPUT
+            ----------------------------------------------------------------------
+            These are missing from Google Drive:
+            - Docs/folder
+            ----------------------------------------------------------------------
+          OUTPUT
 
-        expect(diffs.to_s).to eq(expected_output)
+          expect(diffs.to_s).to eq(expected_output)
+        end
+      end
+
+      context 'with drive_only' do
+        it 'prints correctly' do
+          drive_only_folder = Files::DriveFileMetadata.new('Docs/folder', true, Time.now, 1)
+          drive_only_file = Files::DriveFileMetadata.new('Docs/folder/file.txt', false, Time.now, 2)
+          diffs = FileTreeDiffer.new(
+            local_files: [],
+            drive_files: [drive_only_folder, drive_only_file],
+            unsynced_list: [],
+            summarize_printout: true
+          )
+          expected_output = <<~OUTPUT
+            ----------------------------------------------------------------------
+            These are missing locally:
+            - Docs/folder
+            ----------------------------------------------------------------------
+          OUTPUT
+
+          expect(diffs.to_s).to eq(expected_output)
+        end
+      end
+
+      context 'with local_only and drive_only' do
+        it 'prints correctly' do
+          local_only_folder = Files::FileMetadata.new('Docs/folder', true, Time.now)
+          local_only_file = Files::FileMetadata.new('Docs/folder/file.txt', false, Time.now)
+          drive_only_folder = Files::DriveFileMetadata.new('Docs/d_folder', true, Time.now, 1)
+          drive_only_file = Files::DriveFileMetadata.new('Docs/d_folder/drive_file.txt', false, Time.now, 2)
+          diffs = FileTreeDiffer.new(
+            local_files: [local_only_folder, local_only_file],
+            drive_files: [drive_only_folder, drive_only_file],
+            unsynced_list: [],
+            summarize_printout: true
+          )
+          expected_output = <<~OUTPUT
+            ----------------------------------------------------------------------
+            These are missing from Google Drive:
+            - Docs/folder
+            ----------------------------------------------------------------------
+            These are missing locally:
+            - Docs/d_folder
+            ----------------------------------------------------------------------
+          OUTPUT
+
+          expect(diffs.to_s).to eq(expected_output)
+        end
       end
     end
 
-    context 'with drive_only' do
-      it 'prints correctly' do
-        drive_only_file = Files::DriveFileMetadata.new('Docs/folder1/file.txt', false, Time.now, 1)
-        diffs = FileTreeDiffer.new(
-          local_files: [],
-          drive_files: [drive_only_file],
-          unsynced_list: []
-        )
-        expected_output = <<~OUTPUT
-          ----------------------------------------------------------------------
-          These are missing locally:
-          - Docs/folder1/file.txt
-          ----------------------------------------------------------------------
-        OUTPUT
+    context 'when summarize_printout is disabled' do
+      context 'with local_only' do
+        it 'returns correct string' do
+          local_only_folder = Files::FileMetadata.new('Docs/folder', true, Time.now)
+          local_only_file = Files::FileMetadata.new('Docs/folder/file.txt', false, Time.now)
+          diffs = FileTreeDiffer.new(
+            local_files: [local_only_folder, local_only_file],
+            drive_files: [],
+            unsynced_list: [],
+            summarize_printout: false
+          )
+          expected_output = <<~OUTPUT
+            ----------------------------------------------------------------------
+            These are missing from Google Drive:
+            - Docs/folder
+            - Docs/folder/file.txt
+            ----------------------------------------------------------------------
+          OUTPUT
 
-        expect(diffs.to_s).to eq(expected_output)
+          expect(diffs.to_s).to eq(expected_output)
+        end
       end
-    end
 
-    context 'with local_only and drive_only' do
-      it 'prints correctly' do
-        local_only_file = Files::FileMetadata.new('Docs/folder1/file.txt', false, Time.now)
-        drive_only_file = Files::DriveFileMetadata.new('Docs/folder1/drive_file.txt', false, Time.now, 1)
-        diffs = FileTreeDiffer.new(
-          local_files: [local_only_file],
-          drive_files: [drive_only_file],
-          unsynced_list: []
-        )
-        expected_output = <<~OUTPUT
-          ----------------------------------------------------------------------
-          These are missing from Google Drive:
-          - Docs/folder1/file.txt
-          ----------------------------------------------------------------------
-          These are missing locally:
-          - Docs/folder1/drive_file.txt
-          ----------------------------------------------------------------------
-        OUTPUT
+      context 'with drive_only' do
+        it 'prints correctly' do
+          drive_only_folder = Files::DriveFileMetadata.new('Docs/folder', true, Time.now, 1)
+          drive_only_file = Files::DriveFileMetadata.new('Docs/folder/file.txt', false, Time.now, 2)
+          diffs = FileTreeDiffer.new(
+            local_files: [],
+            drive_files: [drive_only_folder, drive_only_file],
+            unsynced_list: [],
+            summarize_printout: false
+          )
+          expected_output = <<~OUTPUT
+            ----------------------------------------------------------------------
+            These are missing locally:
+            - Docs/folder
+            - Docs/folder/file.txt
+            ----------------------------------------------------------------------
+          OUTPUT
 
-        expect(diffs.to_s).to eq(expected_output)
+          expect(diffs.to_s).to eq(expected_output)
+        end
+      end
+
+      context 'with local_only and drive_only' do
+        it 'prints correctly' do
+          local_only_folder = Files::FileMetadata.new('Docs/folder', true, Time.now)
+          local_only_file = Files::FileMetadata.new('Docs/folder/file.txt', false, Time.now)
+          drive_only_folder = Files::DriveFileMetadata.new('Docs/d_folder', true, Time.now, 1)
+          drive_only_file = Files::DriveFileMetadata.new('Docs/d_folder/drive_file.txt', false, Time.now, 2)
+          diffs = FileTreeDiffer.new(
+            local_files: [local_only_folder, local_only_file],
+            drive_files: [drive_only_folder, drive_only_file],
+            unsynced_list: [],
+            summarize_printout: false
+          )
+          expected_output = <<~OUTPUT
+            ----------------------------------------------------------------------
+            These are missing from Google Drive:
+            - Docs/folder
+            - Docs/folder/file.txt
+            ----------------------------------------------------------------------
+            These are missing locally:
+            - Docs/d_folder
+            - Docs/d_folder/drive_file.txt
+            ----------------------------------------------------------------------
+          OUTPUT
+
+          expect(diffs.to_s).to eq(expected_output)
+        end
       end
     end
 
