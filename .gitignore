@@ -1,5 +1,8 @@
 *-key.json
 
+.env*
+!.env*.erb
+
 unsynced_list.yaml
 drive_folder_list.csv
 drive_file_list.csv

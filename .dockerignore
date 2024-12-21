@@ -1,0 +1,32 @@
+/build_and_push.sh
+
+# Ignore git directory
+/.git/
+/.gitattributes
+/.gitignore
+
+# Ignore all environment files (except templates).
+/.env*
+
+# Ignore docker files
+Dockerfile
+.dockerignore
+
+# Ignore all service-key files
+*-key.json
+
+# Ignore README
+README.md
+
+# Ignore spec and coverage reports
+/spec
+/coverage/
+
+# Ignore local development configurations
+/.rubocop.yml
+/.ruby-lsp
+/.ruby-version
+unsynced_list.yaml
+
+# Ignore debug logs
+.byebug_history
