@@ -15,6 +15,9 @@ Dockerfile
 # Ignore all service-key files
 *-key.json
 
+# Ignore all logfiles and tempfiles
+/log/*
+
 # Ignore README
 README.md
 
